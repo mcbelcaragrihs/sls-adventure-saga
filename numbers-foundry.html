@@ -1,0 +1,1245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLS Adventure Saga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --charcoal:#F6F4FB;
+    --charcoal-2:#FFFFFF;
+    --steel:#EDE9F7;
+    --steel-2:#D6CDEF;
+    --ember:#6A5EF2;
+    --ember-dim:#5347C0;
+    --gold:#FFC145;
+    --cool:#148275;
+    --paper:#2E2A45;
+    --paper-dim:#6E6790;
+    --danger:#E32936;
+    --coral:#FF6F59;
+    --gold-text:#A16B00;
+    --on-primary:#FFFFFF;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, rgba(106,94,242,0.06), transparent 60%),
+      var(--charcoal);
+    color:var(--paper);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:'Big Shoulders Display',sans-serif; font-weight:900; text-transform:uppercase; letter-spacing:0.02em;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+
+  #app{max-width:980px; margin:0 auto; padding:20px 18px 60px;}
+
+  header{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding-bottom:18px; margin-bottom:22px; border-bottom:1px solid var(--steel);
+  }
+  .brand{display:flex; align-items:center; gap:12px;}
+  .brand-mark{width:34px; height:34px; flex-shrink:0;}
+  .brand h1{font-size:clamp(20px,4vw,28px); margin:0; line-height:0.9;}
+  .brand p{margin:2px 0 0; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--paper-dim); font-weight:600;}
+
+  .gauge-wrap{display:flex; align-items:center; gap:12px;}
+  .gauge{position:relative; width:56px; height:56px; border-radius:50%; flex-shrink:0;}
+  .gauge svg{transform:rotate(-90deg);}
+  .gauge-track{stroke:var(--steel);}
+  .gauge-fill{stroke:var(--ember); transition:stroke-dashoffset 0.5s ease, stroke 0.5s ease;}
+  .gauge-label{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; color:var(--paper-dim);}
+  .level-info{line-height:1.15;}
+  .level-info .lv{font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--paper-dim); font-weight:600;}
+  .level-info .heat{font-size:15px; font-weight:700;}
+  .level-info .heat .em{color:var(--ember);}
+
+  #floor-intro{margin-bottom:22px;}
+  #floor-intro h2{font-size:clamp(28px,6vw,40px); margin:0 0 6px; line-height:0.95;}
+  #floor-intro p{color:var(--paper-dim); font-size:15px; margin:0; max-width:560px;}
+
+  .stations{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px;}
+  .station{
+    background:linear-gradient(160deg, var(--charcoal-2), var(--steel) 140%);
+    border:1px solid var(--steel-2);
+    border-radius:var(--radius);
+    padding:20px 18px;
+    cursor:pointer;
+    text-align:left;
+    color:var(--paper);
+    transition:transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    position:relative;
+    overflow:hidden;
+  }
+  .station:hover{transform:translateY(-3px); border-color:var(--ember-dim); box-shadow:0 10px 26px -12px rgba(106,94,242,0.22);}
+  .station:focus-visible{outline:2px solid var(--ember); outline-offset:2px;}
+  .station .tag{font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--ember); font-weight:700; margin-bottom:10px; display:block;}
+  .station h3{font-size:21px; margin:0 0 8px; line-height:1;}
+  .station p{font-size:13px; color:var(--paper-dim); margin:0; line-height:1.4;}
+  .station .num{position:absolute; right:6px; bottom:-14px; font-size:76px; opacity:0.08; line-height:1; font-family:'Big Shoulders Display',sans-serif; font-weight:900;}
+
+  .mode-view{display:none;}
+  .mode-view.active{display:block;}
+  .mode-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; gap:12px; flex-wrap:wrap;}
+  .mode-head h2{font-size:clamp(20px,4.6vw,28px); margin:0; line-height:1;}
+  .back-btn{
+    background:none; border:1px solid var(--steel-2); color:var(--paper-dim);
+    padding:8px 14px; border-radius:8px; font-size:12px; letter-spacing:0.06em;
+    text-transform:uppercase; font-weight:700; cursor:pointer; font-family:inherit;
+  }
+  .back-btn:hover{color:var(--paper); border-color:var(--paper-dim);}
+
+  .card{
+    background:var(--charcoal-2); border:1px solid var(--steel-2); border-radius:var(--radius);
+    padding:26px 24px;
+  }
+
+  .quiz-progress{font-size:13px; color:var(--paper-dim); margin-bottom:6px;}
+  .quiz-cat{display:inline-block; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--cool); font-weight:700; margin-bottom:10px;}
+  .quiz-question{font-size:clamp(19px,4.2vw,25px); margin:0 0 22px; line-height:1.3;}
+  .choices{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .choice-btn{
+    background:var(--charcoal); border:1.5px solid var(--steel-2); color:var(--paper);
+    padding:14px 16px; border-radius:8px; font-size:16px; cursor:pointer; text-align:left;
+    font-family:'IBM Plex Mono',monospace; font-weight:600;
+  }
+  .choice-btn:hover:not(:disabled){border-color:var(--paper-dim);}
+  .choice-btn.correct{border-color:var(--cool); background:rgba(20,130,117,0.12); color:var(--cool);}
+  .choice-btn.wrong{border-color:var(--danger); background:rgba(227,41,54,0.12); color:var(--danger);}
+  .choice-btn:disabled{cursor:default;}
+  .quiz-explain{margin-top:18px; font-size:14px; color:var(--paper-dim); background:var(--charcoal); border-left:3px solid var(--gold); padding:12px 14px; border-radius:0 8px 8px 0;}
+  .quiz-next{margin-top:16px;}
+  .big-stat{font-size:48px; font-weight:900; font-family:'Big Shoulders Display',sans-serif; color:var(--ember);}
+  .data-chart{background:var(--charcoal); border:1px solid var(--steel-2); border-radius:8px; padding:14px 8px;}
+
+  .sprint-timerow{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; font-size:14px; color:var(--paper-dim);}
+  .sprint-timerow span{font-weight:700;}
+  .sprint-time{color:var(--paper-dim);}
+  .sprint-streak-n{color:var(--ember);}
+  .sprint-question{font-size:clamp(34px,8vw,52px); text-align:center; margin:10px 0 26px; letter-spacing:0.02em;}
+  .sprint-form{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
+  .answer-input{
+    background:var(--charcoal); border:1.5px solid var(--steel-2); color:var(--paper);
+    font-family:'IBM Plex Mono',monospace; font-size:22px; text-align:center;
+    padding:12px 16px; border-radius:8px; width:160px; max-width:60vw;
+  }
+  .answer-input:focus{outline:none; border-color:var(--ember);}
+  .sprint-feedback{text-align:center; min-height:26px; margin-top:16px; font-size:14px; font-weight:600;}
+  .sprint-summary p{color:var(--paper-dim); margin-top:4px;}
+
+  .btn-primary{
+    background:var(--ember); color:var(--on-primary); border:none; font-weight:700;
+    padding:12px 24px; border-radius:8px; font-size:15px; cursor:pointer; font-family:inherit;
+    text-transform:uppercase; letter-spacing:0.04em;
+  }
+  .btn-primary:hover{background:var(--ember-dim);}
+  .btn-secondary{
+    background:none; border:1.5px solid var(--steel-2); color:var(--paper);
+    padding:12px 22px; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit;
+    font-weight:600;
+  }
+  .btn-secondary:hover{border-color:var(--paper-dim);}
+
+  .route{display:flex; align-items:center; gap:4px; margin-bottom:24px; overflow-x:auto; padding:6px 2px;}
+  .route-stop{width:30px; height:30px; border-radius:50%; background:var(--steel); border:2px solid var(--steel-2); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--paper-dim);}
+  .route-stop.done{background:var(--cool); border-color:var(--cool); color:var(--on-primary);}
+  .route-stop.current{background:var(--coral); border-color:var(--coral); color:var(--paper); box-shadow:0 0 0 4px rgba(255,111,89,0.18);}
+  .route-line{flex:1; height:2px; background:var(--steel-2); min-width:16px;}
+  .route-line.done{background:var(--cool);}
+  .story-scene{font-size:12px; letter-spacing:0.1em; text-transform:uppercase; color:var(--paper-dim); font-weight:700; margin-bottom:8px;}
+  .story-text{font-size:15px; color:var(--paper-dim); margin-bottom:16px; line-height:1.5;}
+  .story-question{font-size:clamp(19px,4vw,24px); margin:0 0 20px; line-height:1.35;}
+  .story-feedback{margin-top:16px; font-size:14px; font-weight:600; min-height:22px;}
+  .story-complete{text-align:center; display:none;}
+
+  .hidden{display:none !important;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
+
+  /* ---------- LOGIN GATE ---------- */
+  #gate{
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .gate-card{
+    max-width:380px; width:100%; background:var(--charcoal-2); border:1px solid var(--steel-2);
+    border-radius:var(--radius); padding:32px 28px; text-align:center;
+  }
+  .gate-card h1{font-size:28px; margin:0 0 6px;}
+  .gate-card p{color:var(--paper-dim); font-size:14px; margin:0 0 20px;}
+  .gate-card .answer-input{width:100%; text-align:left; font-family:'Inter',sans-serif; font-size:15px; margin-bottom:12px;}
+  #gate-error{color:var(--danger); margin-top:10px; font-size:13px; min-height:16px;}
+  .switch-student{
+    background:none; border:none; color:var(--paper-dim); font-size:11px; text-decoration:underline;
+    cursor:pointer; font-family:inherit; padding:0; margin-left:10px;
+  }
+  .switch-student:hover{color:var(--paper);}
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div class="gate-card">
+    <h1 class="display">SLS Adventure Saga</h1>
+    <p>Enter your class code and your name to start.</p>
+    <input id="gate-class" class="answer-input" placeholder="Class code (e.g. MATH7B)" autocomplete="off">
+    <input id="gate-name" class="answer-input" placeholder="Your name" autocomplete="off">
+    <button id="gate-start" class="btn-primary" style="width:100%;">Start</button>
+    <div id="gate-error"></div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+
+  <header>
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40" fill="none">
+        <path d="M6 30 L18 14 L24 20 L34 8" stroke="#6A5EF2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M28 8 H34 V14" stroke="#6A5EF2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="4" y="32" width="32" height="4" rx="2" fill="#D6CDEF"/>
+      </svg>
+      <div>
+        <h1 class="display">SLS Adventure Saga</h1>
+        <p id="hdr-student">10 stations, foundational skills, one rep at a time</p>
+      </div>
+    </div>
+    <div class="gauge-wrap">
+      <div class="level-info">
+        <div class="lv">Level <span id="hdr-level">1</span></div>
+        <div class="heat"><span class="em" id="hdr-heat">0</span> heat<button class="switch-student" id="switch-student-btn">switch student</button></div>
+      </div>
+      <div class="gauge">
+        <svg width="56" height="56" viewBox="0 0 56 56">
+          <circle class="gauge-track" cx="28" cy="28" r="24" fill="none" stroke-width="5"/>
+          <circle id="gauge-fill" class="gauge-fill" cx="28" cy="28" r="24" fill="none" stroke-width="5"
+            stroke-dasharray="150.8" stroke-dashoffset="150.8" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-label" id="gauge-pct">0%</div>
+      </div>
+    </div>
+  </header>
+
+  <div id="floor-view">
+    <div id="floor-intro">
+      <h2 class="display">Pick a station.</h2>
+      <p>Ten stops, one per skill, run in order from Station 1 to Station 10. Heat builds no matter which station you're working.</p>
+    </div>
+    <div class="stations">
+      <button class="station" data-mode="s1">
+        <span class="tag">Station 1 · Quiz</span>
+        <h3 class="display">Number Sense</h3>
+        <p>Compare, order, and round numbers, including negatives.</p>
+        <span class="num">01</span>
+      </button>
+      <button class="station" data-mode="s2">
+        <span class="tag">Station 2 · Sprint</span>
+        <h3 class="display">Basic Operations</h3>
+        <p>45-second sprint mixing add, subtract, multiply, divide.</p>
+        <span class="num">02</span>
+      </button>
+      <button class="station" data-mode="s3">
+        <span class="tag">Station 3 · Quiz</span>
+        <h3 class="display">Place Value</h3>
+        <p>Name the value of a digit inside a multi-digit number.</p>
+        <span class="num">03</span>
+      </button>
+      <button class="station" data-mode="s4">
+        <span class="tag">Station 4 · Quiz</span>
+        <h3 class="display">Measurement</h3>
+        <p>Convert length, weight, time, and capacity units.</p>
+        <span class="num">04</span>
+      </button>
+      <button class="station" data-mode="s5">
+        <span class="tag">Station 5 · Sprint</span>
+        <h3 class="display">Multiplication</h3>
+        <p>45-second sprint drilling times tables up to 12.</p>
+        <span class="num">05</span>
+      </button>
+      <button class="station" data-mode="s6">
+        <span class="tag">Station 6 · Sprint</span>
+        <h3 class="display">Division</h3>
+        <p>45-second sprint on clean division facts.</p>
+        <span class="num">06</span>
+      </button>
+      <button class="station" data-mode="s7">
+        <span class="tag">Station 7 · Quiz</span>
+        <h3 class="display">Fractions</h3>
+        <p>Add and subtract fractions, then simplify the result.</p>
+        <span class="num">07</span>
+      </button>
+      <button class="station" data-mode="s8">
+        <span class="tag">Station 8 · Quiz</span>
+        <h3 class="display">Decimals</h3>
+        <p>Add, subtract, round, and compare decimal numbers.</p>
+        <span class="num">08</span>
+      </button>
+      <button class="station" data-mode="s9">
+        <span class="tag">Station 9 · Chart Quiz</span>
+        <h3 class="display">Data &amp; Graphs</h3>
+        <p>Read a bar chart: find max, min, totals, and averages.</p>
+        <span class="num">09</span>
+      </button>
+      <button class="station" data-mode="s10">
+        <span class="tag">Station 10 · Story</span>
+        <h3 class="display">Problem Solving</h3>
+        <p>Multi-step word problems along a delivery route.</p>
+        <span class="num">10</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s1">
+    <div class="mode-head"><h2 class="display">Station 1 · Number Sense</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="quiz-progress">Question 1 of 5</div>
+      <div class="quiz-cat">Category</div>
+      <div class="quiz-question">–</div>
+      <div class="quiz-choices choices"></div>
+      <div class="quiz-explain hidden"></div>
+      <button class="btn-primary quiz-next hidden">Next question →</button>
+      <div class="quiz-summary hidden" style="text-align:center;">
+        <div class="big-stat quiz-final">0/5</div>
+        <button class="btn-primary quiz-restart" style="margin-top:16px;">New round</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s2">
+    <div class="mode-head"><h2 class="display">Station 2 · Basic Operations</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="sprint-timerow"><div>Time left: <span class="sprint-time mono">45</span>s</div><div>Streak: <span class="sprint-streak-n mono">0</span></div></div>
+      <div class="sprint-question mono">–</div>
+      <form class="sprint-form">
+        <input type="text" inputmode="decimal" class="answer-input sprint-input" placeholder="answer" autocomplete="off">
+        <button type="submit" class="btn-primary">Submit</button>
+      </form>
+      <div class="sprint-feedback"></div>
+      <div class="sprint-summary hidden" style="text-align:center;">
+        <div class="big-stat sprint-final">0</div>
+        <p>correct answers</p>
+        <button class="btn-primary sprint-restart" style="margin-top:16px;">Run it back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s3">
+    <div class="mode-head"><h2 class="display">Station 3 · Place Value</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="quiz-progress">Question 1 of 5</div>
+      <div class="quiz-cat">Category</div>
+      <div class="quiz-question">–</div>
+      <div class="quiz-choices choices"></div>
+      <div class="quiz-explain hidden"></div>
+      <button class="btn-primary quiz-next hidden">Next question →</button>
+      <div class="quiz-summary hidden" style="text-align:center;">
+        <div class="big-stat quiz-final">0/5</div>
+        <button class="btn-primary quiz-restart" style="margin-top:16px;">New round</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s4">
+    <div class="mode-head"><h2 class="display">Station 4 · Measurement</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="quiz-progress">Question 1 of 5</div>
+      <div class="quiz-cat">Category</div>
+      <div class="quiz-question">–</div>
+      <div class="quiz-choices choices"></div>
+      <div class="quiz-explain hidden"></div>
+      <button class="btn-primary quiz-next hidden">Next question →</button>
+      <div class="quiz-summary hidden" style="text-align:center;">
+        <div class="big-stat quiz-final">0/5</div>
+        <button class="btn-primary quiz-restart" style="margin-top:16px;">New round</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s5">
+    <div class="mode-head"><h2 class="display">Station 5 · Multiplication</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="sprint-timerow"><div>Time left: <span class="sprint-time mono">45</span>s</div><div>Streak: <span class="sprint-streak-n mono">0</span></div></div>
+      <div class="sprint-question mono">–</div>
+      <form class="sprint-form">
+        <input type="text" inputmode="decimal" class="answer-input sprint-input" placeholder="answer" autocomplete="off">
+        <button type="submit" class="btn-primary">Submit</button>
+      </form>
+      <div class="sprint-feedback"></div>
+      <div class="sprint-summary hidden" style="text-align:center;">
+        <div class="big-stat sprint-final">0</div>
+        <p>correct answers</p>
+        <button class="btn-primary sprint-restart" style="margin-top:16px;">Run it back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s6">
+    <div class="mode-head"><h2 class="display">Station 6 · Division</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="sprint-timerow"><div>Time left: <span class="sprint-time mono">45</span>s</div><div>Streak: <span class="sprint-streak-n mono">0</span></div></div>
+      <div class="sprint-question mono">–</div>
+      <form class="sprint-form">
+        <input type="text" inputmode="decimal" class="answer-input sprint-input" placeholder="answer" autocomplete="off">
+        <button type="submit" class="btn-primary">Submit</button>
+      </form>
+      <div class="sprint-feedback"></div>
+      <div class="sprint-summary hidden" style="text-align:center;">
+        <div class="big-stat sprint-final">0</div>
+        <p>correct answers</p>
+        <button class="btn-primary sprint-restart" style="margin-top:16px;">Run it back</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s7">
+    <div class="mode-head"><h2 class="display">Station 7 · Fractions</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="quiz-progress">Question 1 of 5</div>
+      <div class="quiz-cat">Category</div>
+      <div class="quiz-question">–</div>
+      <div class="quiz-choices choices"></div>
+      <div class="quiz-explain hidden"></div>
+      <button class="btn-primary quiz-next hidden">Next question →</button>
+      <div class="quiz-summary hidden" style="text-align:center;">
+        <div class="big-stat quiz-final">0/5</div>
+        <button class="btn-primary quiz-restart" style="margin-top:16px;">New round</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s8">
+    <div class="mode-head"><h2 class="display">Station 8 · Decimals</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="quiz-progress">Question 1 of 5</div>
+      <div class="quiz-cat">Category</div>
+      <div class="quiz-question">–</div>
+      <div class="quiz-choices choices"></div>
+      <div class="quiz-explain hidden"></div>
+      <button class="btn-primary quiz-next hidden">Next question →</button>
+      <div class="quiz-summary hidden" style="text-align:center;">
+        <div class="big-stat quiz-final">0/5</div>
+        <button class="btn-primary quiz-restart" style="margin-top:16px;">New round</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s9">
+    <div class="mode-head"><h2 class="display">Station 9 · Data &amp; Graphs</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="quiz-progress">Question 1 of 5</div>
+      <div class="data-chart hidden" style="margin-bottom:18px;"></div>
+      <div class="quiz-question">–</div>
+      <div class="quiz-choices choices"></div>
+      <div class="quiz-explain hidden"></div>
+      <button class="btn-primary quiz-next hidden">Next question →</button>
+      <div class="quiz-summary hidden" style="text-align:center;">
+        <div class="big-stat quiz-final">0/5</div>
+        <button class="btn-primary quiz-restart" style="margin-top:16px;">New round</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mode-view" id="mode-s10">
+    <div class="mode-head"><h2 class="display">Station 10 · Problem Solving</h2><button class="back-btn" data-back>← Floor</button></div>
+    <div class="card">
+      <div class="route story-route"></div>
+      <div class="story-active">
+        <div class="story-scene">Stop 1</div>
+        <p class="story-text">–</p>
+        <div class="story-question">–</div>
+        <div class="choices story-choices"></div>
+        <div class="story-feedback"></div>
+      </div>
+      <div class="story-complete">
+        <div class="big-stat">🚚</div>
+        <h3 class="display" style="font-size:26px;">Route complete.</h3>
+        <p style="color:var(--paper-dim);">Every stop solved. That's the whole route.</p>
+        <button class="btn-primary story-restart" style="margin-top:12px;">Run it again</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ============================= SUPABASE CONFIG ============================= */
+/* Paste your project's values here — find them in Supabase:
+   Project Settings -> API -> "Project URL" and "anon public" key. */
+const SUPABASE_URL = '__SUPABASE_URL__';
+const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
+
+const NF = {
+  student: null,
+  supabase: (SUPABASE_URL.startsWith('http') && window.supabase)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null
+};
+
+NF.logAttempt = async function(data){
+  if(!NF.student || !NF.supabase) return;
+  try{
+    await NF.supabase.from('attempts').insert({
+      student_id: NF.student.id,
+      class_code: NF.student.class_code,
+      station: data.station,
+      station_label: data.label,
+      question: data.question,
+      correct_answer: String(data.correctAnswer),
+      chosen_answer: String(data.chosenAnswer),
+      is_correct: !!data.isCorrect,
+      heat_earned: data.heatEarned || 0
+    });
+  } catch(e){ console.warn('SLS Adventure Saga: could not log attempt', e); }
+};
+NF.logSession = async function(data){
+  if(!NF.student || !NF.supabase) return;
+  try{
+    await NF.supabase.from('station_sessions').insert({
+      student_id: NF.student.id,
+      class_code: NF.student.class_code,
+      station: data.station,
+      station_label: data.label,
+      score: data.score,
+      total: data.total,
+      heat_earned: data.heatEarned || 0,
+      started_at: data.startedAt,
+      ended_at: data.endedAt
+    });
+  } catch(e){ console.warn('SLS Adventure Saga: could not log session', e); }
+};
+
+/* ============================= LOGIN GATE ============================= */
+const gateEl = document.getElementById('gate');
+const appEl = document.getElementById('app');
+const gateClassInput = document.getElementById('gate-class');
+const gateNameInput = document.getElementById('gate-name');
+const gateBtn = document.getElementById('gate-start');
+const gateError = document.getElementById('gate-error');
+const hdrStudent = document.getElementById('hdr-student');
+const switchBtn = document.getElementById('switch-student-btn');
+
+function enterApp(student){
+  NF.student = student;
+  try{ localStorage.setItem('nf_student', JSON.stringify(student)); }catch(e){}
+  gateEl.classList.add('hidden');
+  appEl.classList.remove('hidden');
+  hdrStudent.textContent = student.name + ' · class ' + student.class_code;
+}
+
+async function findOrCreateStudent(classCodeRaw, nameRaw){
+  const classCode = classCodeRaw.trim().toUpperCase();
+  const name = nameRaw.trim();
+  if(!classCode || !name) throw new Error('Enter both a class code and your name.');
+  if(!NF.supabase) throw new Error('Backend not configured yet — ask your teacher.');
+  const { data: existing, error: selErr } = await NF.supabase
+    .from('students').select('id,class_code,name')
+    .eq('class_code', classCode).ilike('name', name).maybeSingle();
+  if(selErr) throw selErr;
+  if(existing) return existing;
+  const { data: created, error: insErr } = await NF.supabase
+    .from('students').insert({ class_code: classCode, name: name })
+    .select('id,class_code,name').single();
+  if(insErr) throw insErr;
+  return created;
+}
+
+gateBtn.addEventListener('click', async ()=>{
+  gateError.textContent = '';
+  gateBtn.disabled = true; gateBtn.textContent = 'Starting...';
+  try{
+    const student = await findOrCreateStudent(gateClassInput.value, gateNameInput.value);
+    enterApp(student);
+  } catch(e){
+    gateError.textContent = 'Could not start: ' + (e.message || 'check your connection and try again.');
+  } finally {
+    gateBtn.disabled = false; gateBtn.textContent = 'Start';
+  }
+});
+gateNameInput.addEventListener('keydown', e=>{ if(e.key === 'Enter') gateBtn.click(); });
+gateClassInput.addEventListener('keydown', e=>{ if(e.key === 'Enter') gateBtn.click(); });
+
+switchBtn.addEventListener('click', ()=>{
+  try{ localStorage.removeItem('nf_student'); }catch(e){}
+  location.reload();
+});
+
+(function tryResume(){
+  try{
+    const saved = localStorage.getItem('nf_student');
+    if(saved) enterApp(JSON.parse(saved));
+  } catch(e){ /* ignore corrupt saved data */ }
+})();
+
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function gcd(a,b){ a=Math.abs(a); b=Math.abs(b); while(b){ [a,b]=[b,a%b]; } return a||1; }
+function simplifyFrac(n,d){ if(d<0){n=-n; d=-d;} const g=gcd(n,d); return [n/g, d/g]; }
+function pick(arr){ return arr[randInt(0,arr.length-1)]; }
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=randInt(0,i); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function roundTo(n,d){ const f=Math.pow(10,d); return Math.round(n*f)/f; }
+
+const State = { heat:0, level:1 };
+const HEAT_PER_LEVEL = 100;
+const gaugeFill = document.getElementById('gauge-fill');
+const gaugePct = document.getElementById('gauge-pct');
+const hdrHeat = document.getElementById('hdr-heat');
+const hdrLevel = document.getElementById('hdr-level');
+const CIRC = 150.8;
+
+function addHeat(amount){
+  State.heat += amount;
+  while(State.heat >= HEAT_PER_LEVEL){
+    State.heat -= HEAT_PER_LEVEL;
+    State.level += 1;
+  }
+  renderGauge();
+}
+function renderGauge(){
+  const pct = State.heat / HEAT_PER_LEVEL;
+  gaugeFill.setAttribute('stroke-dashoffset', CIRC * (1-pct));
+  gaugePct.textContent = Math.round(pct*100)+'%';
+  hdrHeat.textContent = Math.round(State.heat);
+  hdrLevel.textContent = State.level;
+  gaugeFill.style.stroke = pct < 0.5 ? '#6A5EF2' : '#FF6F59';
+}
+renderGauge();
+
+const floorView = document.getElementById('floor-view');
+const modeViews = document.querySelectorAll('.mode-view');
+const Stations = {};
+
+document.querySelectorAll('.station').forEach(btn=>{
+  btn.addEventListener('click', ()=> showMode(btn.dataset.mode));
+});
+document.querySelectorAll('[data-back]').forEach(btn=>{
+  btn.addEventListener('click', showFloor);
+});
+function showMode(name){
+  floorView.classList.add('hidden');
+  modeViews.forEach(v=>v.classList.remove('active'));
+  document.getElementById('mode-'+name).classList.add('active');
+  if(Stations[name]) Stations[name].start();
+}
+function showFloor(){
+  floorView.classList.remove('hidden');
+  modeViews.forEach(v=>v.classList.remove('active'));
+  Object.keys(Stations).forEach(k=>{ if(Stations[k].stop) Stations[k].stop(); });
+}
+
+function createQuizStation(rootId, source, rounds, meta){
+  rounds = rounds || 5;
+  meta = meta || {key: rootId, label: rootId};
+  const root = document.getElementById(rootId);
+  const progressEl = root.querySelector('.quiz-progress');
+  const catEl = root.querySelector('.quiz-cat');
+  const qEl = root.querySelector('.quiz-question');
+  const choicesEl = root.querySelector('.quiz-choices');
+  const explainEl = root.querySelector('.quiz-explain');
+  const nextBtn = root.querySelector('.quiz-next');
+  const summary = root.querySelector('.quiz-summary');
+  const finalEl = root.querySelector('.quiz-final');
+  const restartBtn = root.querySelector('.quiz-restart');
+  const chartHolder = root.querySelector('.data-chart');
+  let order = [], idx = 0, score = 0, sessionHeat = 0, startedAt = null;
+
+  function buildOrder(){
+    if(typeof source === 'function'){
+      const out = [];
+      for(let i=0;i<rounds;i++) out.push(source());
+      return out;
+    }
+    return shuffle(source).slice(0, rounds);
+  }
+  function start(){
+    order = buildOrder();
+    idx = 0; score = 0; sessionHeat = 0;
+    startedAt = new Date().toISOString();
+    summary.classList.add('hidden');
+    progressEl.classList.remove('hidden');
+    qEl.classList.remove('hidden');
+    choicesEl.classList.remove('hidden');
+    render();
+  }
+  function render(){
+    explainEl.classList.add('hidden');
+    nextBtn.classList.add('hidden');
+    const item = order[idx];
+    progressEl.textContent = 'Question ' + (idx+1) + ' of ' + order.length;
+    if(catEl){
+      if(item.cat){ catEl.textContent = item.cat; catEl.classList.remove('hidden'); }
+      else { catEl.classList.add('hidden'); }
+    }
+    if(chartHolder){
+      if(item.svg){ chartHolder.innerHTML = item.svg; chartHolder.classList.remove('hidden'); }
+      else { chartHolder.innerHTML=''; chartHolder.classList.add('hidden'); }
+    }
+    qEl.textContent = item.q;
+    choicesEl.innerHTML = '';
+    const uniqueChoices = Array.from(new Set(item.choices.map(String)));
+    shuffle(uniqueChoices).forEach(choice=>{
+      const b = document.createElement('button');
+      b.className = 'choice-btn';
+      b.textContent = choice;
+      b.addEventListener('click', ()=> select(b, choice, item));
+      choicesEl.appendChild(b);
+    });
+  }
+  function select(btn, choice, item){
+    const allBtns = choicesEl.querySelectorAll('.choice-btn');
+    allBtns.forEach(b=>b.disabled = true);
+    const correct = String(choice) === String(item.answer);
+    let heatEarned = 0;
+    if(correct){
+      btn.classList.add('correct'); score += 1; heatEarned = 15; sessionHeat += 15; addHeat(15);
+    } else {
+      btn.classList.add('wrong');
+      allBtns.forEach(b=>{ if(String(b.textContent) === String(item.answer)) b.classList.add('correct'); });
+    }
+    explainEl.textContent = item.explain;
+    explainEl.classList.remove('hidden');
+    nextBtn.classList.remove('hidden');
+    NF.logAttempt({
+      station: meta.key, label: meta.label, question: item.q,
+      correctAnswer: item.answer, chosenAnswer: choice,
+      isCorrect: correct, heatEarned: heatEarned
+    });
+  }
+  nextBtn.addEventListener('click', ()=>{
+    idx += 1;
+    if(idx >= order.length) finish(); else render();
+  });
+  function finish(){
+    progressEl.classList.add('hidden');
+    if(catEl) catEl.classList.add('hidden');
+    qEl.classList.add('hidden');
+    choicesEl.classList.add('hidden');
+    if(chartHolder) chartHolder.classList.add('hidden');
+    explainEl.classList.add('hidden');
+    nextBtn.classList.add('hidden');
+    summary.classList.remove('hidden');
+    finalEl.textContent = score + '/' + order.length;
+    NF.logSession({
+      station: meta.key, label: meta.label, score: score, total: order.length,
+      heatEarned: sessionHeat, startedAt: startedAt, endedAt: new Date().toISOString()
+    });
+  }
+  restartBtn.addEventListener('click', start);
+  return { start: start };
+}
+
+function createSprintStation(rootId, generators, seconds, meta){
+  seconds = seconds || 45;
+  meta = meta || {key: rootId, label: rootId};
+  const root = document.getElementById(rootId);
+  const timeEl = root.querySelector('.sprint-time');
+  const streakEl = root.querySelector('.sprint-streak-n');
+  const qEl = root.querySelector('.sprint-question');
+  const form = root.querySelector('.sprint-form');
+  const input = root.querySelector('.sprint-input');
+  const feedback = root.querySelector('.sprint-feedback');
+  const summary = root.querySelector('.sprint-summary');
+  const finalEl = root.querySelector('.sprint-final');
+  const restartBtn = root.querySelector('.sprint-restart');
+  const timerow = root.querySelector('.sprint-timerow');
+  let timeLeft = seconds, timer = null, streak = 0, score = 0, current = null;
+  let attempts = 0, sessionHeat = 0, startedAt = null;
+
+  function next(){
+    current = pick(generators)();
+    qEl.textContent = current.q;
+    input.value = '';
+    input.focus();
+  }
+  function tick(){
+    timeLeft -= 1;
+    timeEl.textContent = timeLeft;
+    if(timeLeft <= 0) end();
+  }
+  function start(){
+    timeLeft = seconds; streak = 0; score = 0; attempts = 0; sessionHeat = 0;
+    startedAt = new Date().toISOString();
+    timeEl.textContent = seconds; streakEl.textContent = 0;
+    feedback.textContent = '';
+    summary.classList.add('hidden');
+    form.classList.remove('hidden');
+    qEl.classList.remove('hidden');
+    timerow.classList.remove('hidden');
+    next();
+    clearInterval(timer);
+    timer = setInterval(tick, 1000);
+  }
+  function stop(){ clearInterval(timer); }
+  function end(){
+    clearInterval(timer);
+    form.classList.add('hidden');
+    qEl.classList.add('hidden');
+    timerow.classList.add('hidden');
+    feedback.textContent = '';
+    summary.classList.remove('hidden');
+    finalEl.textContent = score;
+    NF.logSession({
+      station: meta.key, label: meta.label, score: score, total: attempts,
+      heatEarned: sessionHeat, startedAt: startedAt, endedAt: new Date().toISOString()
+    });
+  }
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    if(!current) return;
+    const val = input.value.trim();
+    const correct = val !== '' && Math.abs(parseFloat(val) - current.answer) < 0.001;
+    attempts += 1;
+    let heatEarned = 0;
+    if(correct){
+      score += 1; streak += 1; streakEl.textContent = streak;
+      heatEarned = 3 + Math.min(streak,10); sessionHeat += heatEarned;
+      addHeat(heatEarned);
+      feedback.style.color = 'var(--cool)';
+      feedback.textContent = 'Correct — ' + current.explain;
+    } else {
+      streak = 0; streakEl.textContent = 0;
+      feedback.style.color = 'var(--danger)';
+      feedback.textContent = 'Not quite. ' + current.explain;
+    }
+    NF.logAttempt({
+      station: meta.key, label: meta.label, question: current.q,
+      correctAnswer: current.answer, chosenAnswer: val,
+      isCorrect: correct, heatEarned: heatEarned
+    });
+    setTimeout(function(){ if(timeLeft > 0) next(); }, 700);
+  });
+  restartBtn.addEventListener('click', start);
+  return { start: start, stop: stop };
+}
+
+function createStoryStation(rootId, stops, meta){
+  meta = meta || {key: rootId, label: rootId};
+  const root = document.getElementById(rootId);
+  const routeEl = root.querySelector('.story-route');
+  const sceneEl = root.querySelector('.story-scene');
+  const textEl = root.querySelector('.story-text');
+  const qEl = root.querySelector('.story-question');
+  const choicesEl = root.querySelector('.story-choices');
+  const feedback = root.querySelector('.story-feedback');
+  const activeEl = root.querySelector('.story-active');
+  const completeEl = root.querySelector('.story-complete');
+  const restartBtn = root.querySelector('.story-restart');
+  let idx = 0, sessionHeat = 0, startedAt = null;
+
+  function renderRoute(){
+    routeEl.innerHTML = '';
+    stops.forEach(function(s,i){
+      const dot = document.createElement('div');
+      dot.className = 'route-stop' + (i<idx?' done':i===idx?' current':'');
+      dot.textContent = i+1;
+      routeEl.appendChild(dot);
+      if(i < stops.length-1){
+        const line = document.createElement('div');
+        line.className = 'route-line' + (i<idx?' done':'');
+        routeEl.appendChild(line);
+      }
+    });
+  }
+  function start(){
+    idx = 0; sessionHeat = 0;
+    startedAt = new Date().toISOString();
+    activeEl.style.display = 'block';
+    completeEl.style.display = 'none';
+    render();
+  }
+  function render(){
+    renderRoute();
+    feedback.textContent = '';
+    const s = stops[idx];
+    sceneEl.textContent = s.scene;
+    textEl.textContent = s.story;
+    qEl.textContent = s.q;
+    choicesEl.innerHTML = '';
+    shuffle(s.choices).forEach(function(choice){
+      const b = document.createElement('button');
+      b.className = 'choice-btn';
+      b.textContent = choice;
+      b.addEventListener('click', function(){ select(b, choice, s); });
+      choicesEl.appendChild(b);
+    });
+  }
+  function select(btn, choice, s){
+    const allBtns = choicesEl.querySelectorAll('.choice-btn');
+    const correct = choice === s.answer;
+    NF.logAttempt({
+      station: meta.key, label: meta.label, question: s.q,
+      correctAnswer: s.answer, chosenAnswer: choice,
+      isCorrect: correct, heatEarned: correct ? 14 : 0
+    });
+    if(correct){
+      allBtns.forEach(function(b){ b.disabled = true; });
+      btn.classList.add('correct');
+      feedback.style.color = 'var(--cool)';
+      feedback.textContent = s.explain + ' Moving to the next stop...';
+      sessionHeat += 14;
+      addHeat(14);
+      setTimeout(function(){
+        idx += 1;
+        if(idx >= stops.length) finish(); else render();
+      }, 1100);
+    } else {
+      btn.classList.add('wrong');
+      btn.disabled = true;
+      feedback.style.color = 'var(--danger)';
+      feedback.textContent = 'Not quite — try one of the remaining options.';
+    }
+  }
+  function finish(){
+    activeEl.style.display = 'none';
+    completeEl.style.display = 'block';
+    renderRoute();
+    NF.logSession({
+      station: meta.key, label: meta.label, score: stops.length, total: stops.length,
+      heatEarned: sessionHeat, startedAt: startedAt, endedAt: new Date().toISOString()
+    });
+  }
+  restartBtn.addEventListener('click', start);
+  return { start: start };
+}
+
+function genNumberSense(){
+  const type = pick(['compare','round','order','parity','negative']);
+  if(type === 'compare'){
+    const a = randInt(-50,50), b = randInt(-50,50);
+    if(a === b) return genNumberSense();
+    const bigger = a > b ? a : b;
+    return {
+      cat:'Number Sense', q:'Which is greater: ' + a + ' or ' + b + '?',
+      choices:[String(a), String(b), 'They are equal', 'Cannot be determined'],
+      answer:String(bigger),
+      explain: bigger + ' sits farther to the right on the number line, so it is greater.'
+    };
+  }
+  if(type === 'round'){
+    const n = randInt(100,9999);
+    const place = pick(['ten','hundred']);
+    const factor = place === 'ten' ? 10 : 100;
+    const rounded = Math.round(n/factor)*factor;
+    const distract = new Set([rounded]);
+    let guard=0;
+    while(distract.size < 4 && guard < 20){ distract.add(rounded + pick([-factor,factor,factor*2,-factor*2])); guard++; }
+    return {
+      cat:'Number Sense', q:'Round ' + n + ' to the nearest ' + place + '.',
+      choices: shuffle(Array.from(distract)).map(String),
+      answer:String(rounded),
+      explain: n + ' rounded to the nearest ' + place + ' is ' + rounded + '.'
+    };
+  }
+  if(type === 'order'){
+    const nums = Array.from({length:4}, function(){ return randInt(-30,60); });
+    const sorted = nums.slice().sort(function(a,b){ return a-b; });
+    const answer = sorted.join(', ');
+    const opts = new Set([answer]);
+    let guard=0;
+    while(opts.size < 4 && guard < 25){ opts.add(shuffle(nums).join(', ')); guard++; }
+    return {
+      cat:'Number Sense', q:'Order from least to greatest: ' + nums.join(', '),
+      choices: shuffle(Array.from(opts)),
+      answer: answer,
+      explain: 'Least to greatest: ' + answer + '.'
+    };
+  }
+  if(type === 'parity'){
+    const n = randInt(10,999);
+    const isEven = n % 2 === 0;
+    return {
+      cat:'Number Sense', q:'Is ' + n + ' odd or even?',
+      choices:['Odd','Even'],
+      answer: isEven ? 'Even' : 'Odd',
+      explain: n + ' ends in ' + (n % 10) + ', which makes it ' + (isEven ? 'even' : 'odd') + '.'
+    };
+  }
+  const a = randInt(1,20), b = randInt(1,20);
+  const answer = -a - b;
+  return {
+    cat:'Number Sense', q:'What is \u2212' + a + ' \u2212 ' + b + '?',
+    choices: shuffle([answer, a+b, -(a-b), a-b].map(String)),
+    answer:String(answer),
+    explain: 'Both values are negative, so add the absolute values and keep the negative sign: \u2212(' + a + '+' + b + ') = ' + answer + '.'
+  };
+}
+Stations.s1 = createQuizStation('mode-s1', genNumberSense, 5, {key:'s1', label:'Number Sense'});
+
+function genBasicOp(){
+  const op = pick(['+','-','\u00D7','\u00F7']);
+  if(op === '\u00F7'){
+    const b = randInt(2,12), q = randInt(2,12), a = b*q;
+    return {q: a + ' \u00F7 ' + b, answer:q, explain: a + ' \u00F7 ' + b + ' = ' + q};
+  }
+  if(op === '+'){
+    const a = randInt(10,99), b = randInt(2,50);
+    return {q: a + ' + ' + b, answer:a+b, explain: a + ' + ' + b + ' = ' + (a+b)};
+  }
+  if(op === '-'){
+    const a = randInt(10,99), b = randInt(2,50);
+    const hi = Math.max(a,b), lo = Math.min(a,b);
+    return {q: hi + ' - ' + lo, answer:hi-lo, explain: hi + ' \u2212 ' + lo + ' = ' + (hi-lo)};
+  }
+  const m1 = randInt(2,12), m2 = randInt(2,12);
+  return {q: m1 + ' \u00D7 ' + m2, answer:m1*m2, explain: m1 + ' \u00D7 ' + m2 + ' = ' + (m1*m2)};
+}
+Stations.s2 = createSprintStation('mode-s2', [genBasicOp], 45, {key:'s2', label:'Basic Operations'});
+
+function genPlaceValue(){
+  const n = randInt(1000,987654);
+  const str = String(n);
+  const idx = randInt(0, str.length-1);
+  const digit = Number(str[idx]);
+  const exp = str.length - 1 - idx;
+  const placeValueNum = digit * Math.pow(10, exp);
+  const placeNames = ['ones','tens','hundreds','thousands','ten thousands','hundred thousands'];
+  const placeName = placeNames[exp] || 'higher place';
+  const distract = new Set([placeValueNum, digit, placeValueNum*10]);
+  if(placeValueNum/10 >= 1) distract.add(placeValueNum/10);
+  let guard=0;
+  while(distract.size < 4 && guard < 15){ distract.add(placeValueNum + Math.pow(10,exp)); guard++; }
+  const choices = shuffle(Array.from(distract)).map(String).slice(0,4);
+  if(choices.indexOf(String(placeValueNum)) === -1) choices[0] = String(placeValueNum);
+  return {
+    cat:'Place Value',
+    q:'In the number ' + n.toLocaleString() + ', what is the value of the digit ' + digit + ' (' + placeName + ' place)?',
+    choices: choices, answer:String(placeValueNum),
+    explain:'The digit ' + digit + ' sits in the ' + placeName + ' place, so its value is ' + placeValueNum.toLocaleString() + '.'
+  };
+}
+Stations.s3 = createQuizStation('mode-s3', genPlaceValue, 5, {key:'s3', label:'Place Value'});
+
+function genMeasurement(){
+  const type = pick(['length','weight','time','capacity']);
+  if(type === 'length'){
+    const cm = randInt(2,9)*100 + randInt(0,99);
+    const m = roundTo(cm/100,2);
+    if(Math.random() < 0.5){
+      const distract = new Set([m, roundTo(cm/10,2), cm, roundTo(cm*100,2)]);
+      return {cat:'Measurement', q:'Convert ' + cm + ' cm to meters.', choices: shuffle(Array.from(distract)).map(String).slice(0,4),
+        answer:String(m), explain:'100 cm = 1 m, so ' + cm + ' cm = ' + m + ' m.'};
+    }
+    const back = Math.round(m*100);
+    const distract = new Set([back, back/10, back*10, back+10]);
+    return {cat:'Measurement', q:'Convert ' + m + ' m to centimeters.', choices: shuffle(Array.from(distract)).map(String).slice(0,4),
+      answer:String(back), explain:'1 m = 100 cm, so ' + m + ' m = ' + back + ' cm.'};
+  }
+  if(type === 'weight'){
+    const g = randInt(1,9)*1000 + randInt(0,900);
+    const kg = roundTo(g/1000,2);
+    const distract = new Set([kg, roundTo(g/100,2), g, roundTo(g*1000,2)]);
+    return {cat:'Measurement', q:'Convert ' + g + ' g to kilograms.', choices: shuffle(Array.from(distract)).map(String).slice(0,4),
+      answer:String(kg), explain:'1000 g = 1 kg, so ' + g + ' g = ' + kg + ' kg.'};
+  }
+  if(type === 'time'){
+    const mins = randInt(2,9)*60 + pick([0,15,30,45]);
+    const h = Math.floor(mins/60), rem = mins % 60;
+    const answer = h + 'h ' + rem + 'm';
+    const distract = new Set([answer, h + 'h ' + (rem+10) + 'm', (h+1) + 'h ' + rem + 'm', h + 'h ' + (60-rem) + 'm']);
+    return {cat:'Measurement', q:'Convert ' + mins + ' minutes into hours and minutes.', choices: shuffle(Array.from(distract)).slice(0,4),
+      answer: answer, explain: mins + ' minutes = ' + h + ' hour(s) and ' + rem + ' minute(s), since ' + h + '\u00D760 = ' + (h*60) + ', leaving ' + rem + '.'};
+  }
+  const ml = randInt(1,9)*1000 + randInt(0,900);
+  const l = roundTo(ml/1000,2);
+  const distract = new Set([l, roundTo(ml/100,2), ml, roundTo(ml*1000,2)]);
+  return {cat:'Measurement', q:'Convert ' + ml + ' mL to liters.', choices: shuffle(Array.from(distract)).map(String).slice(0,4),
+    answer:String(l), explain:'1000 mL = 1 L, so ' + ml + ' mL = ' + l + ' L.'};
+}
+Stations.s4 = createQuizStation('mode-s4', genMeasurement, 5, {key:'s4', label:'Measurement'});
+
+function genMultFact(){
+  const a = randInt(2,12), b = randInt(2,12);
+  return {q: a + ' \u00D7 ' + b, answer:a*b, explain: a + ' \u00D7 ' + b + ' = ' + (a*b)};
+}
+Stations.s5 = createSprintStation('mode-s5', [genMultFact], 45, {key:'s5', label:'Multiplication'});
+
+function genDivFact(){
+  const b = randInt(2,12), q = randInt(2,12), a = b*q;
+  return {q: a + ' \u00F7 ' + b, answer:q, explain: a + ' \u00F7 ' + b + ' = ' + q + ' because ' + b + ' \u00D7 ' + q + ' = ' + a};
+}
+Stations.s6 = createSprintStation('mode-s6', [genDivFact], 45, {key:'s6', label:'Division'});
+
+function genFractionMC(){
+  const d1 = pick([2,3,4,5,6,8,10,12]), d2 = pick([2,3,4,5,6,8,10,12]);
+  const n1 = randInt(1,d1-1), n2 = randInt(1,d2-1);
+  const op = pick(['+','-']);
+  let A = {n:n1,d:d1}, B = {n:n2,d:d2};
+  if(op === '-' && (n1/d1) < (n2/d2)){ const tmp=A; A=B; B=tmp; }
+  let rn, rd;
+  if(op === '+'){ rn = A.n*B.d + B.n*A.d; rd = A.d*B.d; }
+  else { rn = A.n*B.d - B.n*A.d; rd = A.d*B.d; }
+  const simplified = simplifyFrac(rn,rd);
+  const sn = simplified[0], sd = simplified[1];
+  const answer = sn + '/' + sd;
+  const wrongDenomAdd = (op==='+' ? A.n+B.n : Math.abs(A.n-B.n)) + '/' + (A.d+B.d);
+  const wrongUnsimplified = (rd !== sd) ? (rn + '/' + rd) : ((sn*2) + '/' + (sd*2));
+  const wrongFlip = sd + '/' + (sn || 1);
+  const distract = new Set([answer, wrongDenomAdd, wrongUnsimplified, wrongFlip]);
+  const choices = shuffle(Array.from(distract)).slice(0,4);
+  if(choices.indexOf(answer) === -1) choices[0] = answer;
+  const opWord = op === '+' ? 'Add' : 'Subtract';
+  return {
+    cat:'Fractions',
+    q: opWord + ': ' + A.n + '/' + A.d + ' ' + op + ' ' + B.n + '/' + B.d + '  (simplify your answer)',
+    choices: choices, answer: answer,
+    explain:'Common denominator ' + rd + ': ' + A.n + '/' + A.d + ' = ' + (A.n*B.d) + '/' + rd + ' and ' + B.n + '/' + B.d + ' = ' + (B.n*A.d) + '/' + rd + '. ' + opWord + ' the numerators to get ' + rn + '/' + rd + ', which simplifies to ' + sn + '/' + sd + '.'
+  };
+}
+Stations.s7 = createQuizStation('mode-s7', genFractionMC, 5, {key:'s7', label:'Fractions'});
+
+function genDecimalMC(){
+  const type = pick(['addsub','round','place','compare']);
+  if(type === 'addsub'){
+    const a = roundTo(randInt(10,500)/10,1);
+    const b = roundTo(randInt(10,500)/10,1);
+    const op = pick(['+','-']);
+    let hi = a, lo = b, qStr;
+    if(op === '-'){ hi = Math.max(a,b); lo = Math.min(a,b); qStr = hi.toFixed(1) + ' \u2212 ' + lo.toFixed(1); }
+    else qStr = a.toFixed(1) + ' + ' + b.toFixed(1);
+    const val = roundTo(op === '+' ? a+b : hi-lo, 1);
+    const distract = new Set([val.toFixed(1), roundTo(val+1,1).toFixed(1), roundTo(val-1,1).toFixed(1), roundTo(val+0.1,1).toFixed(1)]);
+    return {cat:'Decimals', q:'What is ' + qStr + '?', choices: shuffle(Array.from(distract)), answer: val.toFixed(1), explain: qStr + ' = ' + val.toFixed(1)};
+  }
+  if(type === 'round'){
+    const n = roundTo(randInt(1000,9999)/100, 2);
+    const rounded = roundTo(n,1);
+    const distract = new Set([rounded.toFixed(1), roundTo(rounded+0.1,1).toFixed(1), roundTo(rounded-0.1,1).toFixed(1), Math.round(n).toFixed(1)]);
+    return {cat:'Decimals', q:'Round ' + n.toFixed(2) + ' to the nearest tenth.', choices: shuffle(Array.from(distract)),
+      answer: rounded.toFixed(1), explain:'Look at the hundredths digit to round: ' + n.toFixed(2) + ' rounds to ' + rounded.toFixed(1) + '.'};
+  }
+  if(type === 'place'){
+    const n = roundTo(randInt(1000,9999)/1000,3);
+    const decDigits = n.toFixed(3).split('.')[1];
+    const posNames = ['tenths','hundredths','thousandths'];
+    const pos = randInt(0,2);
+    const digit = decDigits[pos];
+    const distract = new Set([digit, String((Number(digit)+1)%10), String((Number(digit)+9)%10)]);
+    let guard=0;
+    while(distract.size < 4 && guard<10){ distract.add(String(randInt(0,9))); guard++; }
+    return {cat:'Decimals', q:'In ' + n.toFixed(3) + ', what digit is in the ' + posNames[pos] + ' place?',
+      choices: shuffle(Array.from(distract)).slice(0,4), answer: digit,
+      explain:'Counting right from the decimal point: tenths, hundredths, thousandths. The ' + posNames[pos] + ' digit in ' + n.toFixed(3) + ' is ' + digit + '.'};
+  }
+  const a = roundTo(randInt(10,999)/100,2);
+  let b = roundTo(randInt(10,999)/100,2);
+  if(a === b) b = roundTo(b+0.37,2);
+  const answer = a > b ? a.toFixed(2) : b.toFixed(2);
+  return {cat:'Decimals', q:'Which is greater: ' + a.toFixed(2) + ' or ' + b.toFixed(2) + '?',
+    choices: shuffle([a.toFixed(2), b.toFixed(2), 'They are equal', 'Cannot be determined']),
+    answer: answer, explain:'Compare digit by digit from the left: ' + answer + ' is larger.'};
+}
+Stations.s8 = createQuizStation('mode-s8', genDecimalMC, 5, {key:'s8', label:'Decimals'});
+
+function genDataRound(){
+  const themeSets = [
+    {title:'Books Read This Week', labels:['Mon','Tue','Wed','Thu','Fri'], unit:'books'},
+    {title:'Fruit Sold at the Stand', labels:['Apples','Bananas','Grapes','Oranges'], unit:'lbs'},
+    {title:'Votes for Favorite Sport', labels:['Soccer','Basketball','Tennis','Swimming'], unit:'votes'}
+  ];
+  const theme = pick(themeSets);
+  const values = theme.labels.map(function(){ return randInt(2,20); });
+  const max = Math.max.apply(null, values), maxIdx = values.indexOf(max);
+  const min = Math.min.apply(null, values), minIdx = values.indexOf(min);
+  const total = values.reduce(function(s,v){ return s+v; },0);
+  const avg = roundTo(total/values.length,1);
+
+  const w=340, h=180, padding=30, barGap=18;
+  const barW = (w - padding*2 - barGap*(values.length-1)) / values.length;
+  const maxVal = Math.max.apply(null, values.concat([1]));
+  let bars = '';
+  values.forEach(function(v,i){
+    const barH = (v/maxVal) * (h - padding*2);
+    const x = padding + i*(barW+barGap);
+    const y = h - padding - barH;
+    bars += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + barH + '" fill="#FF6F59" rx="3"/>';
+    bars += '<text x="' + (x+barW/2) + '" y="' + (h-padding+16) + '" text-anchor="middle" font-size="11" fill="#6E6790" font-family="IBM Plex Mono, monospace">' + theme.labels[i] + '</text>';
+    bars += '<text x="' + (x+barW/2) + '" y="' + (y-6) + '" text-anchor="middle" font-size="12" fill="#2E2A45" font-family="IBM Plex Mono, monospace" font-weight="600">' + v + '</text>';
+  });
+  const svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="100%" style="max-width:380px;display:block;margin:0 auto;">' + bars + '</svg>';
+
+  const qType = pick(['max','min','diff','total','average']);
+  let q, answer, choices, explain;
+  if(qType === 'max'){
+    q = 'Looking at "' + theme.title + '", which category has the highest value?';
+    answer = theme.labels[maxIdx];
+    choices = shuffle(theme.labels.slice());
+    explain = theme.labels[maxIdx] + ' has the tallest bar at ' + max + ' ' + theme.unit + '.';
+  } else if(qType === 'min'){
+    q = 'Looking at "' + theme.title + '", which category has the lowest value?';
+    answer = theme.labels[minIdx];
+    choices = shuffle(theme.labels.slice());
+    explain = theme.labels[minIdx] + ' has the shortest bar at ' + min + ' ' + theme.unit + '.';
+  } else if(qType === 'diff'){
+    let i = randInt(0,values.length-1), j = randInt(0,values.length-1);
+    let guard=0;
+    while(j === i && guard<10){ j = randInt(0,values.length-1); guard++; }
+    const diff = Math.abs(values[i]-values[j]);
+    q = 'Looking at "' + theme.title + '", what is the difference between ' + theme.labels[i] + ' and ' + theme.labels[j] + '?';
+    answer = String(diff);
+    choices = shuffle(Array.from(new Set([diff, diff+2, Math.max(diff-2,0), diff+5]))).map(String);
+    explain = theme.labels[i] + ' = ' + values[i] + ', ' + theme.labels[j] + ' = ' + values[j] + '. The difference is ' + diff + '.';
+  } else if(qType === 'total'){
+    q = 'Looking at "' + theme.title + '", what is the total across all categories?';
+    answer = String(total);
+    choices = shuffle(Array.from(new Set([total, total+2, total-2, total+5]))).map(String);
+    explain = 'Add every bar: ' + values.join(' + ') + ' = ' + total + '.';
+  } else {
+    q = 'Looking at "' + theme.title + '", what is the average (mean) value, rounded to one decimal?';
+    answer = avg.toFixed(1);
+    choices = shuffle(Array.from(new Set([avg.toFixed(1), roundTo(avg+1,1).toFixed(1), roundTo(avg-1,1).toFixed(1), roundTo(avg+0.5,1).toFixed(1)])));
+    explain = 'Total is ' + total + ', divided by ' + values.length + ' categories = ' + avg.toFixed(1) + '.';
+  }
+  return {svg: svg, cat:'Data & Graphs', q: q, choices: choices, answer: answer, explain: explain};
+}
+Stations.s9 = createQuizStation('mode-s9', genDataRound, 5, {key:'s9', label:'Data & Graphs'});
+
+const problemSolvingStops = [
+  {
+    scene:'Stop 1 \u2014 Loading Dock',
+    story:'You load 480 lbs of cargo split evenly across 8 crates.',
+    q:'How many pounds go in each crate?',
+    choices:['60 lbs','48 lbs','80 lbs','40 lbs'], answer:'60 lbs',
+    explain:'480 \u00F7 8 = 60 lbs per crate.'
+  },
+  {
+    scene:'Stop 2 \u2014 Gas Station',
+    story:'Gas is $3.60 per gallon. You need 12 gallons to fill the tank.',
+    q:'How much does the fill-up cost?',
+    choices:['$43.20','$36.00','$40.20','$48.00'], answer:'$43.20',
+    explain:'$3.60 \u00D7 12 = $43.20.'
+  },
+  {
+    scene:'Stop 3 \u2014 Toll Plaza',
+    story:'The toll is normally $8, but trucks with 3+ axles get 25% off.',
+    q:'What does your 3-axle truck pay?',
+    choices:['$6.00','$2.00','$5.00','$7.25'], answer:'$6.00',
+    explain:'25% of $8 = $2. $8 \u2212 $2 = $6.00.'
+  },
+  {
+    scene:'Stop 4 \u2014 Warehouse Drop-off',
+    story:'The client ordered 3/4 of a pallet, and a full pallet holds 40 boxes.',
+    q:'How many boxes should you drop off?',
+    choices:['30','32','35','20'], answer:'30',
+    explain:'3/4 \u00D7 40 = 30 boxes.'
+  },
+  {
+    scene:'Stop 5 \u2014 Route Check',
+    story:'You drove 165 miles in 3 hours at a steady pace.',
+    q:'What was your average speed?',
+    choices:['55 mph','50 mph','60 mph','45 mph'], answer:'55 mph',
+    explain:'165 \u00F7 3 = 55 mph.'
+  },
+  {
+    scene:'Stop 6 \u2014 Final Delivery',
+    story:'Final invoice: 2x + 15 = 45, where x is the per-mile fuel surcharge in cents.',
+    q:'Solve for x.',
+    choices:['15','20','30','10'], answer:'15',
+    explain:'2x = 45 \u2212 15 = 30, so x = 30 \u00F7 2 = 15.'
+  }
+];
+Stations.s10 = createStoryStation('mode-s10', problemSolvingStops, {key:'s10', label:'Problem Solving'});
+</script>
+</body>
+</html>

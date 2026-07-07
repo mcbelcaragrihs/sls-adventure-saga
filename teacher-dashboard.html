@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SLS Adventure Saga — Teacher Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<style>
+  :root{
+    --charcoal:#F6F4FB; --charcoal-2:#FFFFFF; --steel:#EDE9F7; --steel-2:#D6CDEF;
+    --ember:#6A5EF2; --ember-dim:#5347C0; --gold:#FFC145; --cool:#148275;
+    --paper:#2E2A45; --paper-dim:#6E6790; --danger:#E32936; --coral:#FF6F59;
+    --gold-text:#A16B00; --on-primary:#FFFFFF; --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: radial-gradient(ellipse 900px 500px at 50% -10%, rgba(106,94,242,0.06), transparent 60%), var(--charcoal);
+    color:var(--paper); font-family:'Inter',sans-serif; min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .display{font-family:'Big Shoulders Display',sans-serif; font-weight:900; text-transform:uppercase; letter-spacing:0.02em;}
+  .mono{font-family:'IBM Plex Mono',monospace;}
+  #app-wrap{max-width:1100px; margin:0 auto; padding:20px 18px 60px;}
+  .hidden{display:none !important;}
+
+  header{display:flex; align-items:center; justify-content:space-between; gap:16px; padding-bottom:18px; margin-bottom:22px; border-bottom:1px solid var(--steel);}
+  .brand h1{font-size:clamp(20px,4vw,26px); margin:0; line-height:0.9;}
+  .brand p{margin:2px 0 0; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--paper-dim); font-weight:600;}
+  .btn-primary{background:var(--ember); color:var(--on-primary); border:none; font-weight:700; padding:10px 20px; border-radius:8px; font-size:14px; cursor:pointer; font-family:inherit; text-transform:uppercase; letter-spacing:0.04em;}
+  .btn-primary:hover{background:var(--ember-dim);}
+  .btn-secondary{background:none; border:1.5px solid var(--steel-2); color:var(--paper); padding:10px 18px; border-radius:8px; font-size:13px; cursor:pointer; font-family:inherit; font-weight:600;}
+  .btn-secondary:hover{border-color:var(--paper-dim);}
+
+  /* login */
+  #login-gate{min-height:80vh; display:flex; align-items:center; justify-content:center;}
+  .login-card{max-width:380px; width:100%; background:var(--charcoal-2); border:1px solid var(--steel-2); border-radius:var(--radius); padding:32px 28px; text-align:center;}
+  .login-card h1{font-size:26px; margin:0 0 6px;}
+  .login-card p{color:var(--paper-dim); font-size:13px; margin:0 0 20px;}
+  .field{background:var(--charcoal); border:1.5px solid var(--steel-2); color:var(--paper); font-family:'Inter',sans-serif; font-size:14px; padding:11px 14px; border-radius:8px; width:100%; margin-bottom:10px;}
+  .field:focus{outline:none; border-color:var(--ember);}
+  #login-error{color:var(--danger); font-size:13px; min-height:18px; margin-top:8px;}
+
+  .card{background:var(--charcoal-2); border:1px solid var(--steel-2); border-radius:var(--radius); padding:22px 20px; margin-bottom:18px;}
+  .card h2{font-size:19px; margin:0 0 4px; font-family:'Big Shoulders Display',sans-serif; font-weight:800; text-transform:uppercase; letter-spacing:0.02em;}
+  .card .sub{color:var(--paper-dim); font-size:12px; margin:0 0 16px;}
+
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:16px;}
+  .toolbar select, .toolbar input{
+    background:var(--charcoal); border:1.5px solid var(--steel-2); color:var(--paper);
+    font-family:'Inter',sans-serif; font-size:13px; padding:8px 12px; border-radius:8px;
+  }
+
+  .stat-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:16px;}
+  .stat-box{background:var(--charcoal); border:1px solid var(--steel-2); border-radius:8px; padding:14px; text-align:center;}
+  .stat-box .n{font-family:'Big Shoulders Display',sans-serif; font-weight:900; font-size:30px; color:var(--ember);}
+  .stat-box .l{font-size:11px; color:var(--paper-dim); text-transform:uppercase; letter-spacing:0.06em;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th, td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--steel-2);}
+  th{color:var(--paper-dim); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:0.05em;}
+  tr.student-row{cursor:pointer;}
+  tr.student-row:hover td{background:var(--steel);}
+  tr.student-row.active td{background:rgba(106,94,242,0.10);}
+  .acc-pill{display:inline-block; padding:2px 8px; border-radius:20px; font-family:'IBM Plex Mono',monospace; font-size:12px; font-weight:600;}
+  .acc-good{background:rgba(20,130,117,0.15); color:var(--cool);}
+  .acc-mid{background:rgba(217,131,36,0.15); color:var(--gold-text);}
+  .acc-low{background:rgba(227,41,54,0.15); color:var(--danger);}
+
+  .chart-wrap{position:relative; height:260px;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:760px){ .two-col{grid-template-columns:1fr;} }
+
+  #empty-state{color:var(--paper-dim); font-size:14px; text-align:center; padding:30px 10px;}
+  .loading-msg{color:var(--paper-dim); font-size:13px; text-align:center; padding:20px;}
+</style>
+</head>
+<body>
+
+<div id="login-gate">
+  <div class="login-card">
+    <h1 class="display">SLS Adventure Saga</h1>
+    <p>Teacher Dashboard — sign in with the account you created in Supabase.</p>
+    <input id="login-email" class="field" type="email" placeholder="you@school.edu" autocomplete="username">
+    <input id="login-password" class="field" type="password" placeholder="Password" autocomplete="current-password">
+    <button id="login-btn" class="btn-primary" style="width:100%;">Sign in</button>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<div id="app-wrap" class="hidden">
+  <header>
+    <div class="brand">
+      <h1 class="display">SLS Adventure Saga</h1>
+      <p>Teacher Dashboard</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="btn-secondary" id="refresh-btn">Refresh data</button>
+      <button class="btn-secondary" id="signout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <div id="loading-msg" class="loading-msg">Loading data…</div>
+
+  <div id="dashboard-body" class="hidden">
+    <div class="card">
+      <h2>Class Overview</h2>
+      <p class="sub">Accuracy by station, across every student in the selected class.</p>
+      <div class="toolbar">
+        <select id="class-filter"></select>
+        <input id="student-search" class="mono" placeholder="Search student name...">
+      </div>
+      <div class="stat-row" id="class-stats"></div>
+      <div class="chart-wrap"><canvas id="class-chart"></canvas></div>
+    </div>
+
+    <div class="card">
+      <h2>Students</h2>
+      <p class="sub">Click a student to see their detailed breakdown.</p>
+      <table id="student-table">
+        <thead><tr><th>Name</th><th>Class</th><th>Sessions</th><th>Total Heat</th><th>Accuracy</th></tr></thead>
+        <tbody id="student-tbody"></tbody>
+      </table>
+      <div id="student-empty" class="hidden" style="text-align:center;color:var(--paper-dim);padding:20px;">No students match this filter yet.</div>
+    </div>
+
+    <div class="card hidden" id="detail-card">
+      <h2 id="detail-name">Student</h2>
+      <p class="sub" id="detail-sub"></p>
+      <div class="stat-row" id="detail-stats"></div>
+      <div class="two-col">
+        <div>
+          <p class="sub" style="margin-bottom:8px;">Accuracy by station</p>
+          <div class="chart-wrap"><canvas id="detail-station-chart"></canvas></div>
+        </div>
+        <div>
+          <p class="sub" style="margin-bottom:8px;">Heat earned over time</p>
+          <div class="chart-wrap"><canvas id="detail-heat-chart"></canvas></div>
+        </div>
+      </div>
+      <p class="sub" style="margin-top:20px; margin-bottom:8px;">Most-missed questions</p>
+      <table>
+        <thead><tr><th>Station</th><th>Question</th><th>Correct answer</th><th>Times missed</th></tr></thead>
+        <tbody id="missed-tbody"></tbody>
+      </table>
+      <div id="missed-empty" class="hidden" style="text-align:center;color:var(--paper-dim);padding:16px;">No missed questions logged for this student yet.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================= SUPABASE CONFIG ============================= */
+/* Paste the SAME project URL and anon key you used in numbers-foundry.html */
+const SUPABASE_URL = '__SUPABASE_URL__';
+const SUPABASE_ANON_KEY = '__SUPABASE_ANON_KEY__';
+
+const sb = (SUPABASE_URL.startsWith('http') && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
+
+const STATION_ORDER = [
+  {key:'s1', label:'Number Sense'},
+  {key:'s2', label:'Basic Operations'},
+  {key:'s3', label:'Place Value'},
+  {key:'s4', label:'Measurement'},
+  {key:'s5', label:'Multiplication'},
+  {key:'s6', label:'Division'},
+  {key:'s7', label:'Fractions'},
+  {key:'s8', label:'Decimals'},
+  {key:'s9', label:'Data & Graphs'},
+  {key:'s10', label:'Problem Solving'},
+];
+
+/* ============================= LOGIN ============================= */
+const loginGate = document.getElementById('login-gate');
+const appWrap = document.getElementById('app-wrap');
+const loginEmail = document.getElementById('login-email');
+const loginPassword = document.getElementById('login-password');
+const loginBtn = document.getElementById('login-btn');
+const loginError = document.getElementById('login-error');
+
+loginBtn.addEventListener('click', async ()=>{
+  loginError.textContent = '';
+  if(!sb){ loginError.textContent = 'Supabase is not configured yet — paste your project URL and anon key into this file.'; return; }
+  loginBtn.disabled = true; loginBtn.textContent = 'Signing in...';
+  try{
+    const { error } = await sb.auth.signInWithPassword({
+      email: loginEmail.value.trim(),
+      password: loginPassword.value
+    });
+    if(error) throw error;
+    loginGate.classList.add('hidden');
+    appWrap.classList.remove('hidden');
+    loadAll();
+  } catch(e){
+    loginError.textContent = e.message || 'Could not sign in.';
+  } finally {
+    loginBtn.disabled = false; loginBtn.textContent = 'Sign in';
+  }
+});
+loginPassword.addEventListener('keydown', e=>{ if(e.key === 'Enter') loginBtn.click(); });
+
+document.getElementById('signout-btn').addEventListener('click', async ()=>{
+  if(sb) await sb.auth.signOut();
+  location.reload();
+});
+document.getElementById('refresh-btn').addEventListener('click', loadAll);
+
+/* resume an existing session on reload, if the browser still has one */
+(async function tryResume(){
+  if(!sb) return;
+  const { data } = await sb.auth.getSession();
+  if(data && data.session){
+    loginGate.classList.add('hidden');
+    appWrap.classList.remove('hidden');
+    loadAll();
+  }
+})();
+
+/* ============================= DATA LOADING ============================= */
+let STATE = { students:[], attempts:[], sessions:[], selectedStudentId:null };
+
+async function loadAll(){
+  const loadingMsg = document.getElementById('loading-msg');
+  const body = document.getElementById('dashboard-body');
+  loadingMsg.classList.remove('hidden');
+  body.classList.add('hidden');
+  try{
+    const [studentsRes, attemptsRes, sessionsRes] = await Promise.all([
+      sb.from('students').select('id,name,class_code,created_at'),
+      sb.from('attempts').select('student_id,station,station_label,question,correct_answer,chosen_answer,is_correct,heat_earned,created_at'),
+      sb.from('station_sessions').select('student_id,station,station_label,score,total,heat_earned,started_at,ended_at')
+    ]);
+    if(studentsRes.error) throw studentsRes.error;
+    if(attemptsRes.error) throw attemptsRes.error;
+    if(sessionsRes.error) throw sessionsRes.error;
+
+    STATE.students = studentsRes.data || [];
+    STATE.attempts = attemptsRes.data || [];
+    STATE.sessions = sessionsRes.data || [];
+
+    populateClassFilter();
+    renderEverything();
+    loadingMsg.classList.add('hidden');
+    body.classList.remove('hidden');
+  } catch(e){
+    loadingMsg.textContent = 'Could not load data: ' + (e.message || 'unknown error') + '. Make sure you are signed in with a non-anonymous account and RLS policies are set up.';
+  }
+}
+
+function populateClassFilter(){
+  const sel = document.getElementById('class-filter');
+  const codes = Array.from(new Set(STATE.students.map(s=>s.class_code))).sort();
+  sel.innerHTML = '<option value="__all__">All classes</option>' + codes.map(c=>'<option value="'+c+'">'+c+'</option>').join('');
+}
+document.getElementById('class-filter').addEventListener('change', renderEverything);
+document.getElementById('student-search').addEventListener('input', renderEverything);
+
+/* ============================= AGGREGATION ============================= */
+function buildStudentAggregates(studentIds){
+  const idSet = new Set(studentIds);
+  const perStudent = {};
+  studentIds.forEach(id=>{
+    perStudent[id] = {
+      sessionsCount:0, totalHeat:0, totalAttempts:0, correctAttempts:0,
+      perStation: {}, missed: {}, heatTimeline: []
+    };
+    STATION_ORDER.forEach(st=>{ perStudent[id].perStation[st.key] = {correct:0, total:0}; });
+  });
+  STATE.sessions.forEach(s=>{
+    if(!idSet.has(s.student_id)) return;
+    const agg = perStudent[s.student_id];
+    agg.sessionsCount += 1;
+    agg.totalHeat += Number(s.heat_earned || 0);
+    agg.heatTimeline.push({ t: s.ended_at, heat: Number(s.heat_earned || 0) });
+  });
+  STATE.attempts.forEach(a=>{
+    if(!idSet.has(a.student_id)) return;
+    const agg = perStudent[a.student_id];
+    agg.totalAttempts += 1;
+    if(a.is_correct) agg.correctAttempts += 1;
+    if(!agg.perStation[a.station]) agg.perStation[a.station] = {correct:0,total:0};
+    agg.perStation[a.station].total += 1;
+    if(a.is_correct) agg.perStation[a.station].correct += 1;
+    if(!a.is_correct){
+      const key = a.station + '||' + a.question;
+      if(!agg.missed[key]) agg.missed[key] = {station:a.station, question:a.question, correctAnswer:a.correct_answer, count:0};
+      agg.missed[key].count += 1;
+    }
+  });
+  Object.values(perStudent).forEach(agg=>{
+    agg.heatTimeline.sort((a,b)=> new Date(a.t) - new Date(b.t));
+  });
+  return perStudent;
+}
+
+function accuracyClass(pct){
+  if(pct === null) return '';
+  if(pct >= 75) return 'acc-good';
+  if(pct >= 50) return 'acc-mid';
+  return 'acc-low';
+}
+function pctOf(correct, total){
+  return total > 0 ? Math.round((correct/total)*100) : null;
+}
+
+/* ============================= RENDER ============================= */
+let classChartInstance = null, stationChartInstance = null, heatChartInstance = null;
+
+function currentFilteredStudents(){
+  const classVal = document.getElementById('class-filter').value;
+  const search = document.getElementById('student-search').value.trim().toLowerCase();
+  return STATE.students.filter(s=>{
+    if(classVal !== '__all__' && s.class_code !== classVal) return false;
+    if(search && s.name.toLowerCase().indexOf(search) === -1) return false;
+    return true;
+  });
+}
+
+function renderEverything(){
+  const filtered = currentFilteredStudents();
+  const ids = filtered.map(s=>s.id);
+  const perStudent = buildStudentAggregates(ids);
+  renderClassOverview(filtered, perStudent);
+  renderStudentTable(filtered, perStudent);
+  if(STATE.selectedStudentId && ids.indexOf(STATE.selectedStudentId) !== -1){
+    renderStudentDetail(STATE.selectedStudentId, perStudent[STATE.selectedStudentId]);
+  } else {
+    document.getElementById('detail-card').classList.add('hidden');
+    STATE.selectedStudentId = null;
+  }
+}
+
+function renderClassOverview(students, perStudent){
+  let totalCorrect = 0, totalAttempts = 0, totalHeat = 0, totalSessions = 0;
+  const classPerStation = {};
+  STATION_ORDER.forEach(st=>{ classPerStation[st.key] = {correct:0, total:0}; });
+
+  students.forEach(s=>{
+    const agg = perStudent[s.id];
+    if(!agg) return;
+    totalCorrect += agg.correctAttempts;
+    totalAttempts += agg.totalAttempts;
+    totalHeat += agg.totalHeat;
+    totalSessions += agg.sessionsCount;
+    STATION_ORDER.forEach(st=>{
+      classPerStation[st.key].correct += agg.perStation[st.key].correct;
+      classPerStation[st.key].total += agg.perStation[st.key].total;
+    });
+  });
+
+  const statsEl = document.getElementById('class-stats');
+  statsEl.innerHTML =
+    '<div class="stat-box"><div class="n">' + students.length + '</div><div class="l">Students</div></div>' +
+    '<div class="stat-box"><div class="n">' + totalSessions + '</div><div class="l">Rounds played</div></div>' +
+    '<div class="stat-box"><div class="n">' + (pctOf(totalCorrect, totalAttempts) ?? '—') + '%</div><div class="l">Class accuracy</div></div>' +
+    '<div class="stat-box"><div class="n">' + Math.round(totalHeat) + '</div><div class="l">Total heat earned</div></div>';
+
+  const labels = STATION_ORDER.map(s=>s.label);
+  const data = STATION_ORDER.map(s=> pctOf(classPerStation[s.key].correct, classPerStation[s.key].total) ?? 0);
+
+  const ctx = document.getElementById('class-chart').getContext('2d');
+  if(classChartInstance) classChartInstance.destroy();
+  classChartInstance = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Accuracy %', data, backgroundColor:'#6A5EF2', borderRadius:4 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        y:{ beginAtZero:true, max:100, ticks:{color:'#6E6790'}, grid:{color:'#D6CDEF'} },
+        x:{ ticks:{color:'#6E6790', font:{size:10}}, grid:{display:false} }
+      },
+      plugins:{ legend:{display:false} }
+    }
+  });
+}
+
+function renderStudentTable(students, perStudent){
+  const tbody = document.getElementById('student-tbody');
+  const emptyEl = document.getElementById('student-empty');
+  tbody.innerHTML = '';
+  if(students.length === 0){ emptyEl.classList.remove('hidden'); return; }
+  emptyEl.classList.add('hidden');
+
+  students
+    .slice()
+    .sort((a,b)=> a.name.localeCompare(b.name))
+    .forEach(s=>{
+      const agg = perStudent[s.id];
+      const acc = pctOf(agg.correctAttempts, agg.totalAttempts);
+      const tr = document.createElement('tr');
+      tr.className = 'student-row' + (STATE.selectedStudentId === s.id ? ' active' : '');
+      tr.innerHTML =
+        '<td>' + escapeHtml(s.name) + '</td>' +
+        '<td class="mono">' + escapeHtml(s.class_code) + '</td>' +
+        '<td class="mono">' + agg.sessionsCount + '</td>' +
+        '<td class="mono">' + Math.round(agg.totalHeat) + '</td>' +
+        '<td>' + (acc === null ? '<span class="mono" style="color:var(--paper-dim);">—</span>' : '<span class="acc-pill ' + accuracyClass(acc) + '">' + acc + '%</span>') + '</td>';
+      tr.addEventListener('click', ()=>{ STATE.selectedStudentId = s.id; renderEverything(); document.getElementById('detail-card').scrollIntoView({behavior:'smooth', block:'nearest'}); });
+      tbody.appendChild(tr);
+    });
+}
+
+function renderStudentDetail(studentId, agg){
+  const student = STATE.students.find(s=>s.id === studentId);
+  if(!student || !agg) return;
+  const detailCard = document.getElementById('detail-card');
+  detailCard.classList.remove('hidden');
+  document.getElementById('detail-name').textContent = student.name;
+  document.getElementById('detail-sub').textContent = 'Class ' + student.class_code;
+
+  const acc = pctOf(agg.correctAttempts, agg.totalAttempts);
+  document.getElementById('detail-stats').innerHTML =
+    '<div class="stat-box"><div class="n">' + agg.sessionsCount + '</div><div class="l">Rounds played</div></div>' +
+    '<div class="stat-box"><div class="n">' + (acc ?? '—') + '%</div><div class="l">Overall accuracy</div></div>' +
+    '<div class="stat-box"><div class="n">' + Math.round(agg.totalHeat) + '</div><div class="l">Total heat</div></div>' +
+    '<div class="stat-box"><div class="n">' + agg.totalAttempts + '</div><div class="l">Questions attempted</div></div>';
+
+  const labels = STATION_ORDER.map(s=>s.label);
+  const data = STATION_ORDER.map(s=> pctOf(agg.perStation[s.key].correct, agg.perStation[s.key].total) ?? 0);
+  const stationCtx = document.getElementById('detail-station-chart').getContext('2d');
+  if(stationChartInstance) stationChartInstance.destroy();
+  stationChartInstance = new Chart(stationCtx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Accuracy %', data, backgroundColor:'#148275', borderRadius:4 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        y:{ beginAtZero:true, max:100, ticks:{color:'#6E6790'}, grid:{color:'#D6CDEF'} },
+        x:{ ticks:{color:'#6E6790', font:{size:9}}, grid:{display:false} }
+      },
+      plugins:{ legend:{display:false} }
+    }
+  });
+
+  let cumulative = 0;
+  const heatLabels = agg.heatTimeline.map((pt,i)=> 'Round ' + (i+1));
+  const heatData = agg.heatTimeline.map(pt=>{ cumulative += pt.heat; return Math.round(cumulative); });
+  const heatCtx = document.getElementById('detail-heat-chart').getContext('2d');
+  if(heatChartInstance) heatChartInstance.destroy();
+  heatChartInstance = new Chart(heatCtx, {
+    type:'line',
+    data:{ labels: heatLabels, datasets:[{ label:'Cumulative heat', data: heatData, borderColor:'#D98324', backgroundColor:'rgba(217,131,36,0.15)', fill:true, tension:0.3, pointRadius:3 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        y:{ beginAtZero:true, ticks:{color:'#6E6790'}, grid:{color:'#D6CDEF'} },
+        x:{ ticks:{color:'#6E6790', font:{size:9}}, grid:{display:false} }
+      },
+      plugins:{ legend:{display:false} }
+    }
+  });
+
+  const missedTbody = document.getElementById('missed-tbody');
+  const missedEmpty = document.getElementById('missed-empty');
+  const missedList = Object.values(agg.missed).sort((a,b)=> b.count - a.count).slice(0,10);
+  missedTbody.innerHTML = '';
+  if(missedList.length === 0){
+    missedEmpty.classList.remove('hidden');
+  } else {
+    missedEmpty.classList.add('hidden');
+    missedList.forEach(m=>{
+      const stLabel = (STATION_ORDER.find(st=>st.key===m.station) || {label:m.station}).label;
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + escapeHtml(stLabel) + '</td>' +
+        '<td>' + escapeHtml(m.question) + '</td>' +
+        '<td class="mono">' + escapeHtml(m.correctAnswer) + '</td>' +
+        '<td class="mono">' + m.count + '</td>';
+      missedTbody.appendChild(tr);
+    });
+  }
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>
