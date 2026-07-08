@@ -101,6 +101,23 @@
     padding:26px 24px;
   }
 
+  .difficulty-select .sub{font-size:14px; color:var(--paper-dim); margin:0 0 14px;}
+  .difficulty-options{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+  @media (max-width:600px){ .difficulty-options{grid-template-columns:1fr;} }
+  .difficulty-btn{
+    background:var(--card); border:1.5px solid var(--border); border-left:4px solid var(--border);
+    border-radius:10px; padding:16px 14px; text-align:left; cursor:pointer; font-family:inherit;
+  }
+  .difficulty-btn:hover{border-color:var(--paper-dim); border-left-width:4px;}
+  .difficulty-btn .diff-label{display:block; font-family:'Big Shoulders Display',sans-serif; font-weight:800; font-size:19px; text-transform:uppercase; color:var(--paper); letter-spacing:0.02em;}
+  .difficulty-btn .diff-desc{display:block; font-size:12px; color:var(--paper-dim); margin-top:4px; line-height:1.35;}
+  .difficulty-btn.diff-easy{border-left-color:var(--cool);}
+  .difficulty-btn.diff-easy:hover{border-color:var(--cool);}
+  .difficulty-btn.diff-average{border-left-color:var(--gold-text);}
+  .difficulty-btn.diff-average:hover{border-color:var(--gold-text);}
+  .difficulty-btn.diff-difficult{border-left-color:var(--coral);}
+  .difficulty-btn.diff-difficult:hover{border-color:var(--coral);}
+
   .quiz-progress{font-size:13px; color:var(--paper-dim); margin-bottom:6px;}
   .quiz-cat{display:inline-block; font-size:11px; letter-spacing:0.1em; text-transform:uppercase; color:var(--cool); font-weight:700; margin-bottom:10px;}
   .quiz-question{font-size:clamp(19px,4.2vw,25px); margin:0 0 22px; line-height:1.3;}
@@ -296,10 +313,27 @@
   <div class="mode-view" id="mode-s1">
     <div class="mode-head"><h2 class="display">Station 1 · Number Sense</h2><button class="back-btn" data-back>← Floor</button></div>
     <div class="card">
-      <div class="quiz-progress">Question 1 of 5</div>
-      <div class="quiz-cat">Category</div>
-      <div class="quiz-question">–</div>
-      <div class="quiz-choices choices"></div>
+      <div class="difficulty-select">
+        <p class="sub">Choose a difficulty to begin.</p>
+        <div class="difficulty-options">
+          <button class="difficulty-btn diff-easy" data-difficulty="easy">
+            <span class="diff-label">Easy</span>
+            <span class="diff-desc">Smaller numbers, a gentle warm-up.</span>
+          </button>
+          <button class="difficulty-btn diff-average" data-difficulty="average">
+            <span class="diff-label">Average</span>
+            <span class="diff-desc">Standard practice range.</span>
+          </button>
+          <button class="difficulty-btn diff-difficult" data-difficulty="difficult">
+            <span class="diff-label">Difficult</span>
+            <span class="diff-desc">Bigger numbers, extra challenge.</span>
+          </button>
+        </div>
+      </div>
+      <div class="quiz-progress hidden">Question 1 of 5</div>
+      <div class="quiz-cat hidden">Category</div>
+      <div class="quiz-question hidden">–</div>
+      <div class="quiz-choices choices hidden"></div>
       <div class="quiz-explain hidden"></div>
       <button class="btn-primary quiz-next hidden">Next question →</button>
       <div class="quiz-summary hidden" style="text-align:center;">
@@ -491,7 +525,8 @@ NF.logAttempt = async function(data){
       correct_answer: String(data.correctAnswer),
       chosen_answer: String(data.chosenAnswer),
       is_correct: !!data.isCorrect,
-      heat_earned: data.heatEarned || 0
+      heat_earned: data.heatEarned || 0,
+      difficulty: data.difficulty || null
     });
   } catch(e){ console.warn('SLS Adventure Saga: could not log attempt', e); }
 };
@@ -507,7 +542,8 @@ NF.logSession = async function(data){
       total: data.total,
       heat_earned: data.heatEarned || 0,
       started_at: data.startedAt,
-      ended_at: data.endedAt
+      ended_at: data.endedAt,
+      difficulty: data.difficulty || null
     });
   } catch(e){ console.warn('SLS Adventure Saga: could not log session', e); }
 };
@@ -629,9 +665,10 @@ function showFloor(){
   Object.keys(Stations).forEach(k=>{ if(Stations[k].stop) Stations[k].stop(); });
 }
 
-function createQuizStation(rootId, source, rounds, meta){
+function createQuizStation(rootId, source, rounds, meta, opts){
   rounds = rounds || 5;
   meta = meta || {key: rootId, label: rootId};
+  opts = opts || {};
   const root = document.getElementById(rootId);
   const progressEl = root.querySelector('.quiz-progress');
   const catEl = root.querySelector('.quiz-cat');
@@ -643,17 +680,34 @@ function createQuizStation(rootId, source, rounds, meta){
   const finalEl = root.querySelector('.quiz-final');
   const restartBtn = root.querySelector('.quiz-restart');
   const chartHolder = root.querySelector('.data-chart');
-  let order = [], idx = 0, score = 0, sessionHeat = 0, startedAt = null;
+  const diffEl = root.querySelector('.difficulty-select');
+  let order = [], idx = 0, score = 0, sessionHeat = 0, startedAt = null, currentDifficulty = null;
 
   function buildOrder(){
     if(typeof source === 'function'){
       const out = [];
-      for(let i=0;i<rounds;i++) out.push(source());
+      for(let i=0;i<rounds;i++) out.push(source(currentDifficulty));
       return out;
     }
     return shuffle(source).slice(0, rounds);
   }
   function start(){
+    if(opts.difficulty && diffEl){
+      diffEl.classList.remove('hidden');
+      summary.classList.add('hidden');
+      progressEl.classList.add('hidden');
+      if(catEl) catEl.classList.add('hidden');
+      qEl.classList.add('hidden');
+      choicesEl.classList.add('hidden');
+      explainEl.classList.add('hidden');
+      nextBtn.classList.add('hidden');
+      if(chartHolder) chartHolder.classList.add('hidden');
+      return;
+    }
+    beginRound();
+  }
+  function beginRound(){
+    if(diffEl) diffEl.classList.add('hidden');
     order = buildOrder();
     idx = 0; score = 0; sessionHeat = 0;
     startedAt = new Date().toISOString();
@@ -662,6 +716,14 @@ function createQuizStation(rootId, source, rounds, meta){
     qEl.classList.remove('hidden');
     choicesEl.classList.remove('hidden');
     render();
+  }
+  if(diffEl){
+    diffEl.querySelectorAll('.difficulty-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        currentDifficulty = btn.dataset.difficulty;
+        beginRound();
+      });
+    });
   }
   function render(){
     explainEl.classList.add('hidden');
@@ -704,7 +766,7 @@ function createQuizStation(rootId, source, rounds, meta){
     NF.logAttempt({
       station: meta.key, label: meta.label, question: item.q,
       correctAnswer: item.answer, chosenAnswer: choice,
-      isCorrect: correct, heatEarned: heatEarned
+      isCorrect: correct, heatEarned: heatEarned, difficulty: currentDifficulty
     });
   }
   nextBtn.addEventListener('click', ()=>{
@@ -723,7 +785,8 @@ function createQuizStation(rootId, source, rounds, meta){
     finalEl.textContent = score + '/' + order.length;
     NF.logSession({
       station: meta.key, label: meta.label, score: score, total: order.length,
-      heatEarned: sessionHeat, startedAt: startedAt, endedAt: new Date().toISOString()
+      heatEarned: sessionHeat, startedAt: startedAt, endedAt: new Date().toISOString(),
+      difficulty: currentDifficulty
     });
   }
   restartBtn.addEventListener('click', start);
@@ -904,11 +967,96 @@ function createStoryStation(rootId, stops, meta){
   return { start: start };
 }
 
-function genNumberSense(){
-  const type = pick(['compare','round','order','parity','negative']);
+/* ---- helpers for word<->number translation and place-value expansion ---- */
+function numberToWords(n){
+  if(n === 0) return 'zero';
+  const ones = ['','one','two','three','four','five','six','seven','eight','nine','ten',
+    'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+  const tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+  function threeDigits(num){
+    let str = '';
+    if(num >= 100){
+      str += ones[Math.floor(num/100)] + ' hundred';
+      num %= 100;
+      if(num > 0) str += ' ';
+    }
+    if(num >= 20){
+      str += tens[Math.floor(num/10)];
+      if(num % 10 > 0) str += '-' + ones[num % 10];
+    } else if(num > 0){
+      str += ones[num];
+    }
+    return str;
+  }
+  let result = '';
+  const thousands = Math.floor(n/1000);
+  const remainder = n % 1000;
+  if(thousands > 0){
+    result += threeDigits(thousands) + ' thousand';
+    if(remainder > 0) result += ' ';
+  }
+  if(remainder > 0) result += threeDigits(remainder);
+  return result;
+}
+function expandedFormParts(n){
+  const str = String(n);
+  const len = str.length;
+  const parts = [];
+  for(let i=0;i<len;i++){
+    const digit = Number(str[i]);
+    if(digit === 0) continue;
+    parts.push(digit * Math.pow(10, len-1-i));
+  }
+  return parts;
+}
+function expandedFormString(n){
+  return expandedFormParts(n).join(' + ');
+}
+function nearbyNumbers(n, count){
+  const str = String(n);
+  const results = new Set();
+  let guard = 0;
+  while(results.size < count && guard < 40){
+    guard++;
+    const variant = pick(['swap','bump','digit']);
+    let candidate = n;
+    if(variant === 'swap' && str.length >= 2){
+      const chars = str.split('');
+      const i = randInt(0, chars.length-1);
+      let j = randInt(0, chars.length-1);
+      if(i === j) continue;
+      const tmp = chars[i]; chars[i] = chars[j]; chars[j] = tmp;
+      candidate = Number(chars.join(''));
+    } else if(variant === 'bump'){
+      const place = Math.pow(10, randInt(0, str.length-1));
+      candidate = n + pick([-1,1]) * place;
+    } else {
+      const idx = randInt(0, str.length-1);
+      const chars = str.split('');
+      let d = Number(chars[idx]);
+      d = ((d + pick([1,2,-1,-2])) % 10 + 10) % 10;
+      chars[idx] = String(d);
+      candidate = Number(chars.join(''));
+    }
+    if(candidate > 0 && candidate !== n) results.add(candidate);
+  }
+  let filler = 1;
+  while(results.size < count){ results.add(n + filler); filler++; }
+  return Array.from(results).slice(0, count);
+}
+function numRangeForDifficulty(difficulty){
+  if(difficulty === 'easy') return {min:10, max:999};
+  if(difficulty === 'difficult') return {min:1000, max:987654};
+  return {min:100, max:9999}; // average / default
+}
+
+function genNumberSense(difficulty){
+  const range = numRangeForDifficulty(difficulty);
+  const type = pick(['compare','round','order','parity','numberToWords','wordsToNumber','expandedForm']);
+
   if(type === 'compare'){
-    const a = randInt(-50,50), b = randInt(-50,50);
-    if(a === b) return genNumberSense();
+    const a = randInt(range.min, range.max), b = randInt(range.min, range.max);
+    if(a === b) return genNumberSense(difficulty);
     const bigger = a > b ? a : b;
     return {
       cat:'Number Sense', q:'Which is greater: ' + a + ' or ' + b + '?',
@@ -918,22 +1066,25 @@ function genNumberSense(){
     };
   }
   if(type === 'round'){
-    const n = randInt(100,9999);
-    const place = pick(['ten','hundred']);
-    const factor = place === 'ten' ? 10 : 100;
+    const n = randInt(range.min, range.max);
+    const place = difficulty === 'difficult' ? pick(['hundred','thousand'])
+      : difficulty === 'easy' ? 'ten'
+      : pick(['ten','hundred']);
+    const factor = place === 'ten' ? 10 : place === 'hundred' ? 100 : 1000;
     const rounded = Math.round(n/factor)*factor;
     const distract = new Set([rounded]);
     let guard=0;
     while(distract.size < 4 && guard < 20){ distract.add(rounded + pick([-factor,factor,factor*2,-factor*2])); guard++; }
     return {
-      cat:'Number Sense', q:'Round ' + n + ' to the nearest ' + place + '.',
+      cat:'Number Sense', q:'Round ' + n.toLocaleString() + ' to the nearest ' + place + '.',
       choices: shuffle(Array.from(distract)).map(String),
       answer:String(rounded),
-      explain: n + ' rounded to the nearest ' + place + ' is ' + rounded + '.'
+      explain: n.toLocaleString() + ' rounded to the nearest ' + place + ' is ' + rounded.toLocaleString() + '.'
     };
   }
   if(type === 'order'){
-    const nums = Array.from({length:4}, function(){ return randInt(-30,60); });
+    const spread = difficulty === 'easy' ? {min:0, max:99} : difficulty === 'difficult' ? {min:0, max:20000} : {min:0, max:900};
+    const nums = Array.from({length:4}, function(){ return randInt(spread.min, spread.max); });
     const sorted = nums.slice().sort(function(a,b){ return a-b; });
     const answer = sorted.join(', ');
     const opts = new Set([answer]);
@@ -947,25 +1098,68 @@ function genNumberSense(){
     };
   }
   if(type === 'parity'){
-    const n = randInt(10,999);
+    const n = randInt(range.min, range.max);
     const isEven = n % 2 === 0;
     return {
-      cat:'Number Sense', q:'Is ' + n + ' odd or even?',
+      cat:'Number Sense', q:'Is ' + n.toLocaleString() + ' odd or even?',
       choices:['Odd','Even'],
       answer: isEven ? 'Even' : 'Odd',
-      explain: n + ' ends in ' + (n % 10) + ', which makes it ' + (isEven ? 'even' : 'odd') + '.'
+      explain: n.toLocaleString() + ' ends in ' + (n % 10) + ', which makes it ' + (isEven ? 'even' : 'odd') + '.'
     };
   }
-  const a = randInt(1,20), b = randInt(1,20);
-  const answer = -a - b;
+  if(type === 'numberToWords'){
+    const n = randInt(range.min, range.max);
+    const correctWords = numberToWords(n);
+    const distractWords = nearbyNumbers(n, 3).map(numberToWords);
+    const choices = shuffle(Array.from(new Set([correctWords].concat(distractWords))));
+    return {
+      cat:'Number Sense', q:'How do you write ' + n.toLocaleString() + ' in words?',
+      choices: choices, answer: correctWords,
+      explain: n.toLocaleString() + ' is written as "' + correctWords + '."'
+    };
+  }
+  if(type === 'wordsToNumber'){
+    const n = randInt(range.min, range.max);
+    const correctWords = numberToWords(n);
+    const distractNums = nearbyNumbers(n, 3);
+    const choices = shuffle(Array.from(new Set([n].concat(distractNums))).map(function(x){ return x.toLocaleString(); }));
+    return {
+      cat:'Number Sense', q:'What number is "' + correctWords + '"?',
+      choices: choices, answer: n.toLocaleString(),
+      explain: '"' + correctWords + '" is written as the number ' + n.toLocaleString() + '.'
+    };
+  }
+  // expandedForm
+  const n = randInt(Math.max(range.min, 10), range.max);
+  const parts = expandedFormParts(n);
+  const correctExpanded = parts.join(' + ');
+  if(parts.length < 2 || Math.random() < 0.5){
+    // number -> expanded form
+    const distractSet = new Set([correctExpanded]);
+    let guard = 0;
+    while(distractSet.size < 4 && guard < 20){
+      guard++;
+      const shifted = parts.slice();
+      const i = randInt(0, shifted.length-1);
+      shifted[i] = Math.random() < 0.5 ? shifted[i]*10 : Math.max(1, Math.round(shifted[i]/10));
+      distractSet.add(shifted.join(' + '));
+    }
+    return {
+      cat:'Number Sense', q:'Which shows the expanded form of ' + n.toLocaleString() + '?',
+      choices: shuffle(Array.from(distractSet)), answer: correctExpanded,
+      explain: n.toLocaleString() + ' broken apart by place value is ' + correctExpanded + '.'
+    };
+  }
+  // expanded form -> number
+  const distractNums = nearbyNumbers(n, 3);
+  const choices = shuffle(Array.from(new Set([n].concat(distractNums))).map(function(x){ return x.toLocaleString(); }));
   return {
-    cat:'Number Sense', q:'What is \u2212' + a + ' \u2212 ' + b + '?',
-    choices: shuffle([answer, a+b, -(a-b), a-b].map(String)),
-    answer:String(answer),
-    explain: 'Both values are negative, so add the absolute values and keep the negative sign: \u2212(' + a + '+' + b + ') = ' + answer + '.'
+    cat:'Number Sense', q: correctExpanded + ' is which number?',
+    choices: choices, answer: n.toLocaleString(),
+    explain: 'Adding ' + correctExpanded + ' together gives ' + n.toLocaleString() + '.'
   };
 }
-Stations.s1 = createQuizStation('mode-s1', genNumberSense, 5, {key:'s1', label:'Number Sense'});
+Stations.s1 = createQuizStation('mode-s1', genNumberSense, 5, {key:'s1', label:'Number Sense'}, {difficulty:true});
 
 function genBasicOp(){
   const op = pick(['+','-','\u00D7','\u00F7']);
